@@ -89,6 +89,7 @@ docker-compose up -d
 
 2. Activate the Poetry environment:
 ```bash
+cd ../pipelines
 poetry shell
 ```
 
@@ -131,45 +132,48 @@ All errors are logged with appropriate context and severity levels.
 
 ### Running Tests
 
+The project includes a comprehensive test suite. To run the tests:
+
 ```bash
+# Run all tests
 poetry run pytest
+
+# Run tests with verbose output
+poetry run pytest -v
+
+# Run specific test file
+poetry run pytest tests/test_pipeline.py
+
+# Run tests with coverage report
+poetry run pytest --cov=pipeline tests/
 ```
 
-### Code Formatting
+### Test Structure
 
-```bash
-poetry run black .
-poetry run isort .
-```
+- `tests/test_pipeline.py`: Contains all unit tests for the pipeline components
+- Tests cover:
+  - Configuration validation
+  - Milvus connector functionality
+  - Markdown processing
+  - Error handling
+  - Data insertion
+  - Document processing pipeline
 
-### Type Checking
+### Test Dependencies
 
-```bash
-poetry run mypy .
-```
+The following test dependencies are included:
+- pytest: Testing framework
+- pytest-cov: Coverage reporting
+- pytest-mock: Mocking utilities
 
-### Linting
+### Writing Tests
 
-```bash
-poetry run pylint pipeline.py
-```
-
-## Troubleshooting
-
-1. **Milvus Connection Issues**
-   - Ensure Milvus is running: `docker-compose ps`
-   - Check Milvus logs: `docker-compose logs milvus`
-   - Verify connection settings in `config.yaml`
-
-2. **Model Loading Failures**
-   - Check internet connection
-   - Verify model names in `config.yaml`
-   - Ensure sufficient disk space for model downloads
-
-3. **File Processing Errors**
-   - Check file permissions
-   - Verify markdown files are valid
-   - Ensure sufficient memory for large files
+When adding new tests:
+1. Place test files in the `tests/` directory
+2. Use pytest fixtures for common setup
+3. Mock external dependencies (Milvus, models)
+4. Include both positive and negative test cases
+5. Clean up test resources after each test
 
 ## Contributing
 

@@ -40,19 +40,27 @@ def mock_api_client():
         yield mock_get_response
 
 @pytest.fixture
-def chat_app():
+def chat_app(mock_streamlit):
     """Fixture to create a ChatApp instance."""
     with patch('src.app.load_dotenv'), \
          patch('src.app.os.getenv', return_value='8501'):
-        return ChatApp()
+        app = ChatApp()
+        return app
 
 def test_chat_app_initialization(chat_app, mock_streamlit):
     """Test ChatApp initialization."""
+    # Verify port is set correctly
     assert chat_app.port == 8501
+    
+    # Verify page config was set
     mock_streamlit['set_page_config'].assert_called_once_with(
         page_title="Chat with RAG",
         layout="wide"
     )
+    
+    # Verify session state was initialized
+    assert 'messages' in mock_streamlit['session_state']
+    assert mock_streamlit['session_state']['messages'] == []
 
 def test_initialize_session_state(chat_app, mock_streamlit):
     """Test session state initialization."""

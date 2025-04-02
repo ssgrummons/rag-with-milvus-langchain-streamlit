@@ -14,6 +14,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import logging
 from dataclasses import dataclass
 from enum import Enum
+import re
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -208,6 +209,10 @@ class MilvusConnector:
             raise ModelError(f"Failed to process data: {str(e)}")
 
 class MarkdownProcessor:
+    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 100):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+
     @staticmethod
     def parse_markdown(file_path: str):
         try:
@@ -229,16 +234,68 @@ class MarkdownProcessor:
         except Exception as e:
             raise ConfigError(f"Failed to parse markdown file {file_path}: {str(e)}")
 
-    
-    @staticmethod
-    def chunk_text(text: str, chunk_size=500, overlap=100):
+    def chunk_text(self, text: str):
         try:
             splitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size, chunk_overlap=overlap
+                chunk_size=self.chunk_size, 
+                chunk_overlap=self.chunk_overlap
             )
             return splitter.split_text(text)
         except Exception as e:
             raise ModelError(f"Failed to chunk text: {str(e)}")
+
+    def process_markdown(self, file_path: str) -> List[Dict]:
+        """Process a markdown file and return chunks with metadata."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Split content into lines for processing
+        lines = content.split('\n')
+        chunks = []
+        current_chunk = []
+        current_headers = {}  # Track current header hierarchy
+        current_level = 0
+        
+        for line in lines:
+            # Check for headers
+            header_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            if header_match:
+                level = len(header_match.group(1))
+                title = header_match.group(2).strip()
+                current_headers[str(level)] = title
+                # Remove lower level headers when we encounter a higher level
+                current_headers = {k: v for k, v in current_headers.items() if int(k) <= level}
+                continue
+            
+            # Add line to current chunk
+            current_chunk.append(line)
+            
+            # Check if we should create a new chunk
+            if len('\n'.join(current_chunk)) >= self.chunk_size:
+                chunk_text = '\n'.join(current_chunk).strip()
+                if chunk_text:
+                    chunks.append({
+                        'content': chunk_text,
+                        'metadata': {
+                            'source': file_path,
+                            'headers': current_headers.copy()  # Include current header hierarchy
+                        }
+                    })
+                current_chunk = []
+        
+        # Add the last chunk if it exists
+        if current_chunk:
+            chunk_text = '\n'.join(current_chunk).strip()
+            if chunk_text:
+                chunks.append({
+                    'content': chunk_text,
+                    'metadata': {
+                        'source': file_path,
+                        'headers': current_headers.copy()  # Include current header hierarchy
+                    }
+                })
+        
+        return chunks
 
 def load_config(config_path="config.yaml") -> Config:
     """Load and validate configuration."""
@@ -261,16 +318,17 @@ def process_documents(config: Config, milvus_client: MilvusConnector) -> None:
             logger.warning(f"No markdown files found in {config.markdown_folder}")
             return
 
+        # Initialize MarkdownProcessor with config values
+        markdown_processor = MarkdownProcessor(
+            chunk_size=config.chunk_size,
+            chunk_overlap=config.chunk_overlap
+        )
+
         for file in markdown_files:
             try:
                 logger.info(f"Processing {file}...")
-                metadata, content = MarkdownProcessor.parse_markdown(str(file))
-                chunks = MarkdownProcessor.chunk_text(
-                    content, 
-                    config.chunk_size, 
-                    config.chunk_overlap
-                )
-                milvus_client.insert_data(chunks, [metadata] * len(chunks))
+                chunks = markdown_processor.process_markdown(str(file))
+                milvus_client.insert_data([chunk['content'] for chunk in chunks], [chunk['metadata'] for chunk in chunks])
             except Exception as e:
                 logger.error(f"Failed to process file {file}: {str(e)}")
                 continue

@@ -136,9 +136,11 @@ class ModelManager:
                     
                     # Get the final response
                     final_response = model.invoke(messages)
-                    return final_response.content
+                    # Ensure we get the content from the final response
+                    return final_response.content if hasattr(final_response, 'content') else str(final_response)
         
-        return response.content
+        # If no tool calls, return the content from the initial response
+        return response.content if hasattr(response, 'content') else str(response)
 
 # Create a singleton instance for backward compatibility
 _model_manager = ModelManager()

@@ -102,42 +102,37 @@ class ModelManager:
         """
         return model.bind_tools(tools)
 
-    def handle_tool_call(self, model: BaseChatModel, messages: List[BaseMessage], tools: List[BaseTool]) -> str:
+    def handle_tool_call(self,model: BaseChatModel, messages: List[BaseMessage], tools: List[BaseTool]) -> str:
         """Handle a tool call and return the final response.
-        
+
         Args:
             model: The chat model instance.
             messages: List of messages in the conversation.
             tools: List of available tools.
-            
+
         Returns:
             The final response from the model.
         """
         # Get the initial response from the model
         response = model.invoke(messages)
-        
+
         # If there are tool calls, execute them and continue the conversation
         if hasattr(response, 'tool_calls') and response.tool_calls:
             for tool_call in response.tool_calls:
                 # Find the tool to execute
                 tool_name = tool_call.get('name') if isinstance(tool_call, dict) else getattr(tool_call, 'name', None)
                 tool = next((t for t in tools if t.name == tool_name), None)
-                
                 if tool:
                     # Get the arguments
                     args = tool_call.get('args') if isinstance(tool_call, dict) else getattr(tool_call, 'args', {})
-                    
                     # Execute the tool
                     tool_result = tool.invoke(args)
-                    
                     # Add the tool result to the conversation
-                    messages.append(AIMessage(content="", tool_calls=[tool_call]))
-                    messages.append(HumanMessage(content=f"Tool result: {tool_result}"))
-                    
-                    # Get the final response
-                    final_response = model.invoke(messages)
-                    # Ensure we get the content from the final response
-                    return final_response.content if hasattr(final_response, 'content') else str(final_response)
+                    #messages.append(AIMessage(content="", tool_calls=[tool_call]))
+                    messages.append(SystemMessage(content=f"The result of the {tool_name} operation is: {tool_result}. Now, please respond with a detailed answer and explanation in natural language without calling any tools."))
+            # Get the final response
+            final_response = model.invoke(messages)
+            return final_response.content if hasattr(final_response, 'content') else str(final_response)
         
         # If no tool calls, return the content from the initial response
         return response.content if hasattr(response, 'content') else str(response)

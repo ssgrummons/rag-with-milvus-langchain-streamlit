@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     OLLAMA_HOST: str = Field(..., description="Ollama service URL")
-    OLLAMA_MODEL: str = Field(default="llama3.1:8b", description="Default Ollama model to use")
+    OLLAMA_MODEL: str = Field(default="granite3.2", description="Default Ollama model to use")
     
     # RAG Configuration
     CHUNK_SIZE: int = Field(default=500, description="Size of text chunks for processing")
@@ -53,8 +53,21 @@ class Settings(BaseSettings):
 
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
-    model: str
-    system_prompt: Optional[str] = None
+    model: str = "granite3.2"  # Default model
+    system_prompt: Optional[str] = (
+        "You are a helpful AI assistant that can use tools to help answer questions.\n"
+        "When you need to perform calculations or retrieve information, use the available tools.\n"
+        "For mathematical questions, use the multiply tool to get accurate results.\n"
+        "After using a tool, always provide a final response in words. Explain the result clearly, step by step.\n\n"
+        "Available tools:\n"
+        "- multiply: Multiply two numbers together\n"
+        "- retrieve_context: Get relevant information from the knowledge base\n\n"
+        "When using tools:\n"
+        "1. Think about which tool would be most appropriate\n"
+        "2. Use the tool with the correct parameters\n"
+        "3. Explain the result in a clear way\n\n"
+        "Remember to use tools when they provide more accurate or helpful results."
+    )
     user_prompt: str
 
 class ChatResponse(BaseModel):
@@ -123,38 +136,31 @@ async def get_config() -> Dict[str, Any]:
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """Handle chat requests with tool support.
-    
+
     Args:
         request: The chat request containing model, system prompt, and user prompt.
-        
+
     Returns:
         ChatResponse containing the model's response.
-        
+
     Raises:
         HTTPException: If there's an error processing the request.
     """
     try:
         # Get the model
         model = get_model(request.model)
-        
         # Bind the tools
         model_with_tools = bind_tools(model, [multiply, retrieve_context])
-        
         # Create messages list
         messages = []
-        
         # Add system message if provided, otherwise use default
         if request.system_prompt:
             messages.append(SystemMessage(content=request.system_prompt))
-        
         # Add user message
         messages.append(HumanMessage(content=request.user_prompt))
-        
         # Handle the conversation with tool calls
         response = handle_tool_call(model_with_tools, messages, [multiply, retrieve_context])
-        
         return ChatResponse(response=response)
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

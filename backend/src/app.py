@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     OLLAMA_HOST: str = Field(..., description="Ollama service URL")
-    OLLAMA_MODEL: str = Field(default="deepseek-r1:7b", description="Default Ollama model to use")
+    OLLAMA_MODEL: str = Field(default="granite3.2", description="Default Ollama model to use")
     
     # RAG Configuration
     CHUNK_SIZE: int = Field(default=500, description="Size of text chunks for processing")
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
 class ChatRequest(BaseModel):
     """Chat request model."""
-    model: Optional[str] = Field(default="deepseek-r1:7b", description="Model to use for chat")
+    model: Optional[str] = Field(default="granite3.2", description="Model to use for chat")
     system_prompt: Optional[str] = Field(
         default="You are a helpful AI assistant.",
         description="System prompt for the chat"

@@ -18,7 +18,7 @@ This is the backend service for the RAG (Retrieval-Augmented Generation) applica
 - Poetry for dependency management
 - Docker (optional, for containerized deployment)
 - Milvus vector database
-- Ollama with llama2 model
+- Ollama with deepseek-r1:7b model
 
 ## Local Development Setup
 
@@ -44,8 +44,8 @@ This is the backend service for the RAG (Retrieval-Augmented Generation) applica
    MILVUS_PORT=19530
 
    # Ollama Configuration
-   OLLAMA_HOST=http://localhost:11434
-   OLLAMA_MODEL=llama2
+   OLLAMA_HOST=http://host.docker.internal:11434
+   OLLAMA_MODEL=deepseek-r1:7b
 
    # RAG Configuration
    CHUNK_SIZE=500
@@ -104,8 +104,8 @@ docker run -d \
   -p 8000:8000 \
   -e MILVUS_HOST=localhost \
   -e MILVUS_PORT=19530 \
-  -e OLLAMA_HOST=http://localhost:11434 \
-  -e OLLAMA_MODEL=llama2 \
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \
+  -e OLLAMA_MODEL=deepseek-r1:7b \
   -e CHUNK_SIZE=500 \
   -e CHUNK_OVERLAP=100 \
   -e MAX_TOKENS=2048 \
@@ -130,7 +130,7 @@ docker run -d \
 | MILVUS_HOST | Milvus service hostname | - | Yes |
 | MILVUS_PORT | Milvus service port | - | Yes |
 | OLLAMA_HOST | Ollama service URL | - | Yes |
-| OLLAMA_MODEL | Default Ollama model | llama2 | No |
+| OLLAMA_MODEL | Default Ollama model | deepseek-r1:7b | No |
 | CHUNK_SIZE | Size of text chunks | 500 | No |
 | CHUNK_OVERLAP | Overlap between chunks | 100 | No |
 | MAX_TOKENS | Maximum tokens for output | 2048 | No |

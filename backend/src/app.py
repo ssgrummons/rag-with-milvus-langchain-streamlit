@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, List, AsyncGenerator
 import json
 from langchain.schema import SystemMessage, HumanMessage, AIMessage, BaseMessage
 
-from models import get_model, bind_tools, handle_tool_call
+from models import get_model, bind_tools, handle_tool_call, handle_streaming_tool_call
 from prompt_utils import build_messages
 from tools import retrieve_context, multiply
 
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
-    model: str = "granite3.2"  # Default model
+    model: Optional[str] = "granite3.2"  # Default model
     system_prompt: Optional[str] = (
         "You are a helpful AI assistant that can use tools to help answer questions.\n"
         "When you need to perform calculations or retrieve information, use the available tools.\n"
@@ -164,60 +164,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def handle_streaming_tool_calls(
-    model: Any,
-    messages: List[BaseMessage],
-    tools: List[Any]
-) -> AsyncGenerator[str, None]:
-    """Handle streaming responses with tool calls.
-    
-    Args:
-        model: The chat model instance
-        messages: List of messages in the conversation
-        tools: List of available tools
-        
-    Yields:
-        Response chunks as strings
-    """
-    try:
-        # Get the initial response stream
-        async for chunk in model.astream(messages):
-            if hasattr(chunk, 'tool_calls') and chunk.tool_calls:
-                # Handle tool calls
-                for tool_call in chunk.tool_calls:
-                    # Find the tool to execute
-                    tool = next((t for t in tools if t.name == tool_call.name), None)
-                    if tool:
-                        # Execute the tool
-                        tool_result = tool.invoke(tool_call.args)
-                        
-                        # Add the tool result to the conversation
-                        messages.append(AIMessage(content="", tool_calls=[tool_call]))
-                        messages.append(HumanMessage(content=f"Tool result: {tool_result}"))
-                        
-                        # Stream the final response
-                        async for final_chunk in model.astream(messages):
-                            if final_chunk.content:
-                                yield final_chunk.content
-            elif chunk.content:
-                yield chunk.content
-    except Exception as e:
-        logger.error(f"Error in streaming tool calls: {str(e)}")
-        yield f"Error: {str(e)}"
-
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """Handle streaming chat requests with tool support.
-    
-    Args:
-        request: The chat request containing model, system prompt, and user prompt.
-        
-    Returns:
-        StreamingResponse with the model's response chunks.
-        
-    Raises:
-        HTTPException: If there's an error processing the request.
-    """
+    """Handle streaming chat requests with tool support."""
     try:
         # Get the model
         model = get_model(request.model)
@@ -236,12 +185,25 @@ async def chat_stream(request: ChatRequest):
         messages.append(HumanMessage(content=request.user_prompt))
         
         async def stream_generator():
-            async for chunk in handle_streaming_tool_calls(
-                model_with_tools,
-                messages,
-                [multiply, retrieve_context]
-            ):
-                yield chunk
+            try:
+                # Get the streaming handler
+                stream_handler = handle_streaming_tool_call(
+                    model_with_tools,
+                    messages,
+                    [multiply, retrieve_context]
+                )
+                
+                # Process the stream
+                async for chunk in stream_handler:
+                    # Format the chunk as a Server-Sent Event
+                    if chunk:
+                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+            except Exception as e:
+                logger.error(f"Error in stream generator: {str(e)}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                # Send an end-of-stream marker
+                yield "data: [DONE]\n\n"
 
         return StreamingResponse(
             stream_generator(),
@@ -249,6 +211,7 @@ async def chat_stream(request: ChatRequest):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
             }
         )
         

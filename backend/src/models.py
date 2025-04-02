@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List, Any, Dict
 from pydantic_settings import BaseSettings
 from langchain_ollama import ChatOllama
 from langchain.chat_models.base import BaseChatModel
-from langchain.schema import BaseMessage
+from langchain.schema import BaseMessage, SystemMessage, AIMessage, HumanMessage
+from langchain_core.tools import BaseTool
 
 class OllamaSettings(BaseSettings):
     """Settings for Ollama model configuration."""
@@ -41,11 +42,34 @@ class OllamaModelFactory(ModelFactory):
         Returns:
             A configured ChatOllama instance.
         """
+        # Custom system prompt for tool usage
+        system_prompt = """You are a helpful AI assistant that can use tools to help answer questions.
+When you need to perform calculations or retrieve information, use the available tools.
+For mathematical questions, use the multiply tool to get accurate results.
+Always explain your reasoning and show your work when using tools.
+
+Available tools:
+- multiply: Multiply two numbers together
+- retrieve_context: Get relevant information from the knowledge base
+
+When using tools:
+1. Think about which tool would be most appropriate
+2. Use the tool with the correct parameters
+3. Explain the result in a clear way
+
+Remember to use tools when they would provide more accurate or helpful results than trying to calculate or recall information yourself."""
+
+        # Ensure model name doesn't have trailing spaces
+        model = (model_name or self.settings.OLLAMA_MODEL).strip()
+
         return ChatOllama(
-            model=model_name or self.settings.OLLAMA_MODEL,
+            model=model,
             base_url=self.settings.OLLAMA_HOST,
             temperature=self.settings.TEMPERATURE,
             num_predict=self.settings.MAX_TOKENS,
+            system=system_prompt,
+            format="json",  # Ensure JSON mode for tool calling
+            callbacks=None,  # Disable callbacks to handle tool calls manually
         )
 
 class ModelManager:
@@ -66,6 +90,56 @@ class ModelManager:
         """
         return self.factory.create_model(model_name)
 
+    def bind_tools(self, model: BaseChatModel, tools: List[BaseTool]) -> BaseChatModel:
+        """Bind tools to a chat model.
+        
+        Args:
+            model: The chat model to bind tools to.
+            tools: List of tools to bind.
+            
+        Returns:
+            The chat model with tools bound.
+        """
+        return model.bind_tools(tools)
+
+    def handle_tool_call(self, model: BaseChatModel, messages: List[BaseMessage], tools: List[BaseTool]) -> str:
+        """Handle a tool call and return the final response.
+        
+        Args:
+            model: The chat model instance.
+            messages: List of messages in the conversation.
+            tools: List of available tools.
+            
+        Returns:
+            The final response from the model.
+        """
+        # Get the initial response from the model
+        response = model.invoke(messages)
+        
+        # If there are tool calls, execute them and continue the conversation
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            for tool_call in response.tool_calls:
+                # Find the tool to execute
+                tool_name = tool_call.get('name') if isinstance(tool_call, dict) else getattr(tool_call, 'name', None)
+                tool = next((t for t in tools if t.name == tool_name), None)
+                
+                if tool:
+                    # Get the arguments
+                    args = tool_call.get('args') if isinstance(tool_call, dict) else getattr(tool_call, 'args', {})
+                    
+                    # Execute the tool
+                    tool_result = tool.invoke(args)
+                    
+                    # Add the tool result to the conversation
+                    messages.append(AIMessage(content="", tool_calls=[tool_call]))
+                    messages.append(HumanMessage(content=f"Tool result: {tool_result}"))
+                    
+                    # Get the final response
+                    final_response = model.invoke(messages)
+                    return final_response.content
+        
+        return response.content
+
 # Create a singleton instance for backward compatibility
 _model_manager = ModelManager()
 
@@ -79,3 +153,28 @@ def get_model(model_name: Optional[str] = None) -> BaseChatModel:
         A configured chat model instance.
     """
     return _model_manager.get_model(model_name)
+
+def bind_tools(model: BaseChatModel, tools: List[BaseTool]) -> BaseChatModel:
+    """Bind tools to a chat model (backward compatibility function).
+    
+    Args:
+        model: The chat model to bind tools to.
+        tools: List of tools to bind.
+        
+    Returns:
+        The chat model with tools bound.
+    """
+    return _model_manager.bind_tools(model, tools)
+
+def handle_tool_call(model: BaseChatModel, messages: List[BaseMessage], tools: List[BaseTool]) -> str:
+    """Handle a tool call and return the final response (backward compatibility function).
+    
+    Args:
+        model: The chat model instance.
+        messages: List of messages in the conversation.
+        tools: List of available tools.
+        
+    Returns:
+        The final response from the model.
+    """
+    return _model_manager.handle_tool_call(model, messages, tools)

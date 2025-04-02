@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel, Field
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncGenerator
 import json
+from langchain.schema import SystemMessage, HumanMessage, AIMessage, BaseMessage
 
-from models import get_model
+from models import get_model, bind_tools, handle_tool_call
 from prompt_utils import build_messages
-
+from tools import retrieve_context, multiply
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     OLLAMA_HOST: str = Field(..., description="Ollama service URL")
-    OLLAMA_MODEL: str = Field(default="granite3.2", description="Default Ollama model to use")
+    OLLAMA_MODEL: str = Field(default="llama3.1:8b", description="Default Ollama model to use")
     
     # RAG Configuration
     CHUNK_SIZE: int = Field(default=500, description="Size of text chunks for processing")
@@ -43,6 +44,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
     @property
     def allowed_origins(self) -> List[str]:
@@ -50,13 +52,14 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
 class ChatRequest(BaseModel):
-    """Chat request model."""
-    model: Optional[str] = Field(default="granite3.2", description="Model to use for chat")
-    system_prompt: Optional[str] = Field(
-        default="You are a helpful AI assistant.",
-        description="System prompt for the chat"
-    )
-    user_prompt: str = Field(..., description="User's input prompt")
+    """Request model for chat endpoint."""
+    model: str
+    system_prompt: Optional[str] = None
+    user_prompt: str
+
+class ChatResponse(BaseModel):
+    """Response model for chat endpoint."""
+    response: str
 
 # Load settings
 try:
@@ -117,21 +120,135 @@ async def get_config() -> Dict[str, Any]:
         }
     }
 
-@app.post("/chat")
-async def chat(req: ChatRequest):
-    llm = get_model(req.model)
-    messages = build_messages(req.system_prompt, req.user_prompt)
-    response = llm.invoke(messages)
-    return JSONResponse({"response": response.content})
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest) -> ChatResponse:
+    """Handle chat requests with tool support.
+    
+    Args:
+        request: The chat request containing model, system prompt, and user prompt.
+        
+    Returns:
+        ChatResponse containing the model's response.
+        
+    Raises:
+        HTTPException: If there's an error processing the request.
+    """
+    try:
+        # Get the model
+        model = get_model(request.model)
+        
+        # Bind the tools
+        model_with_tools = bind_tools(model, [multiply, retrieve_context])
+        
+        # Create messages list
+        messages = []
+        
+        # Add system message if provided, otherwise use default
+        if request.system_prompt:
+            messages.append(SystemMessage(content=request.system_prompt))
+        
+        # Add user message
+        messages.append(HumanMessage(content=request.user_prompt))
+        
+        # Handle the conversation with tool calls
+        response = handle_tool_call(model_with_tools, messages, [multiply, retrieve_context])
+        
+        return ChatResponse(response=response)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def handle_streaming_tool_calls(
+    model: Any,
+    messages: List[BaseMessage],
+    tools: List[Any]
+) -> AsyncGenerator[str, None]:
+    """Handle streaming responses with tool calls.
+    
+    Args:
+        model: The chat model instance
+        messages: List of messages in the conversation
+        tools: List of available tools
+        
+    Yields:
+        Response chunks as strings
+    """
+    try:
+        # Get the initial response stream
+        async for chunk in model.astream(messages):
+            if hasattr(chunk, 'tool_calls') and chunk.tool_calls:
+                # Handle tool calls
+                for tool_call in chunk.tool_calls:
+                    # Find the tool to execute
+                    tool = next((t for t in tools if t.name == tool_call.name), None)
+                    if tool:
+                        # Execute the tool
+                        tool_result = tool.invoke(tool_call.args)
+                        
+                        # Add the tool result to the conversation
+                        messages.append(AIMessage(content="", tool_calls=[tool_call]))
+                        messages.append(HumanMessage(content=f"Tool result: {tool_result}"))
+                        
+                        # Stream the final response
+                        async for final_chunk in model.astream(messages):
+                            if final_chunk.content:
+                                yield final_chunk.content
+            elif chunk.content:
+                yield chunk.content
+    except Exception as e:
+        logger.error(f"Error in streaming tool calls: {str(e)}")
+        yield f"Error: {str(e)}"
 
 @app.post("/chat/stream")
-async def chat_stream(req: ChatRequest):
-    llm = get_model(req.model)
-    messages = build_messages(req.system_prompt, req.user_prompt)
-    def stream_generator():
-        for chunk in llm.stream(messages):
-            yield chunk.content or ""
-    return StreamingResponse(stream_generator(), media_type="text/plain")
+async def chat_stream(request: ChatRequest):
+    """Handle streaming chat requests with tool support.
+    
+    Args:
+        request: The chat request containing model, system prompt, and user prompt.
+        
+    Returns:
+        StreamingResponse with the model's response chunks.
+        
+    Raises:
+        HTTPException: If there's an error processing the request.
+    """
+    try:
+        # Get the model
+        model = get_model(request.model)
+        
+        # Bind the tools
+        model_with_tools = bind_tools(model, [multiply, retrieve_context])
+        
+        # Create messages list
+        messages = []
+        
+        # Add system message if provided, otherwise use default
+        if request.system_prompt:
+            messages.append(SystemMessage(content=request.system_prompt))
+        
+        # Add user message
+        messages.append(HumanMessage(content=request.user_prompt))
+        
+        async def stream_generator():
+            async for chunk in handle_streaming_tool_calls(
+                model_with_tools,
+                messages,
+                [multiply, retrieve_context]
+            ):
+                yield chunk
+
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

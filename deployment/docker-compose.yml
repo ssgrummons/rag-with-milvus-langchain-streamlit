@@ -9,17 +9,9 @@ services:
       - "8000:8000"
     depends_on:
       - milvus-standalone
-    environment:
-      - MILVUS_HOST=milvus-standalone 
-      - MILVUS_PORT=19530 
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=granite3.2
-      - CHUNK_SIZE=500 
-      - CHUNK_OVERLAP=100 
-      - MAX_TOKENS=2048 
-      - TEMPERATURE=0.7 
-      - LOG_LEVEL=INFO 
-      - CORS_ORIGINS=http://localhost:8501,http://localhost:3000
+    env_file:
+      - ../backend/src/.env
+
     networks:
       - app-network
     healthcheck:

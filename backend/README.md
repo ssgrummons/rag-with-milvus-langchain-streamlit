@@ -1,220 +1,174 @@
-# RAG Chat Backend
+# RAG Backend Service
 
-This is the backend service for the RAG (Retrieval-Augmented Generation) chat system. It provides a FastAPI-based REST API for handling document processing, vector search, and chat interactions.
+This is the backend service for the RAG (Retrieval-Augmented Generation) application. It provides a FastAPI-based API that handles document retrieval and chat interactions.
+
+## Features
+
+- FastAPI-based REST API
+- Integration with Milvus vector database
+- Integration with Ollama for LLM inference
+- Streaming chat responses
+- Health check endpoint
+- Configuration management
+- CORS support
 
 ## Prerequisites
 
-- Python 3.12
-- Poetry (Python package manager)
-- Docker and Docker Compose (for running services)
+- Python 3.12 or higher
+- Poetry for dependency management
+- Docker (optional, for containerized deployment)
+- Milvus vector database
+- Ollama with llama2 model
 
-## Installation
+## Local Development Setup
 
 1. Install Poetry if you haven't already:
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
 
 2. Clone the repository and navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+3. Install dependencies:
+   ```bash
+   poetry install
+   ```
+
+4. Create a `.env` file in the `src` directory with the following content:
+   ```env
+   # Milvus Configuration
+   MILVUS_HOST=localhost
+   MILVUS_PORT=19530
+
+   # Ollama Configuration
+   OLLAMA_HOST=http://localhost:11434
+   OLLAMA_MODEL=llama2
+
+   # RAG Configuration
+   CHUNK_SIZE=500
+   CHUNK_OVERLAP=100
+   MAX_TOKENS=2048
+   TEMPERATURE=0.7
+
+   # Logging Configuration
+   LOG_LEVEL=INFO
+
+   # Security Configuration
+   CORS_ORIGINS=http://localhost:8501,http://localhost:3000
+   ```
+
+5. Run the application locally:
+   ```bash
+   poetry run uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+The API will be available at `http://localhost:8000`.
+
+## Docker Deployment
+
+### Option 1: Using Docker Compose (Recommended)
+
+1. Create a `.env` file in the `src` directory as described above.
+
+2. Build and run using Docker Compose:
+   ```bash
+   docker-compose up --build
+   ```
+
+### Option 2: Manual Docker Build
+
+1. Build the Docker image:
+   ```bash
+   docker build -t rag-backend .
+   ```
+
+2. Run the container with environment variables:
+   ```bash
+   docker run -d \
+     --name rag-backend \
+     -p 8000:8000 \
+     --env-file src/.env \
+     rag-backend
+   ```
+
+### Option 3: Using Docker with Environment Variables
+
+If you prefer to pass environment variables directly:
+
 ```bash
-cd backend
+docker run -d \
+  --name rag-backend \
+  -p 8000:8000 \
+  -e MILVUS_HOST=localhost \
+  -e MILVUS_PORT=19530 \
+  -e OLLAMA_HOST=http://localhost:11434 \
+  -e OLLAMA_MODEL=llama2 \
+  -e CHUNK_SIZE=500 \
+  -e CHUNK_OVERLAP=100 \
+  -e MAX_TOKENS=2048 \
+  -e TEMPERATURE=0.7 \
+  -e LOG_LEVEL=INFO \
+  -e CORS_ORIGINS=http://localhost:8501,http://localhost:3000 \
+  rag-backend
 ```
 
-3. Install dependencies using Poetry:
-```bash
-poetry install
-```
+## API Endpoints
 
-4. Activate the Poetry shell:
-```bash
-poetry shell
-```
+- `GET /`: Root endpoint
+- `GET /health`: Health check endpoint
+- `GET /config`: Get current configuration
+- `POST /chat`: Chat endpoint (non-streaming)
+- `POST /chat/stream`: Streaming chat endpoint
 
 ## Environment Variables
 
-Create a `.env` file in the `backend` directory with the following variables:
-
-```env
-MILVUS_HOST=localhost  # Milvus service hostname
-MILVUS_PORT=19530     # Milvus service port
-OLLAMA_HOST=http://localhost:11434  # Ollama service URL
-```
-
-## Running the Application
-
-### Local Development
-
-To run the FastAPI application locally:
-
-```bash
-poetry run uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-The API will be available at `http://localhost:8000` by default.
-
-### Docker
-
-#### Building the Docker Image
-
-To build the Docker image:
-
-```bash
-docker build -t rag-chat-backend .
-```
-
-#### Running with Docker
-
-To run the application using Docker:
-
-```bash
-docker run -p 8000:8000 \
-  -e MILVUS_HOST=milvus-standalone \
-  -e MILVUS_PORT=19530 \
-  -e OLLAMA_HOST=http://host.docker.internal:11434 \
-  rag-chat-backend
-```
-
-Note: 
-- The `-p 8000:8000` flag maps the container's port 8000 to your host machine's port 8000
-- `host.docker.internal` is used to access the host machine from within the container
-- Adjust the environment variables according to your service locations
-
-#### Docker Compose
-
-The backend service is part of the main docker-compose configuration in the deployment directory. To run it:
-
-```bash
-cd ../deployment
-docker-compose up -d backend
-```
-
-### Docker Development
-
-For development, you might want to mount the source code as a volume to enable hot-reloading:
-
-```bash
-docker run -p 8000:8000 \
-  -e MILVUS_HOST=milvus-standalone \
-  -e MILVUS_PORT=19530 \
-  -e OLLAMA_HOST=http://host.docker.internal:11434 \
-  -v $(pwd)/src:/app/src \
-  rag-chat-backend
-```
-
-## API Documentation
-
-Once the application is running, you can access:
-- Interactive API docs (Swagger UI): `http://localhost:8000/docs`
-- Alternative API docs (ReDoc): `http://localhost:8000/redoc`
-
-## Testing
-
-### Setting Up Tests
-
-The project is set up with pytest for testing, but tests have not been developed yet. To create tests:
-
-1. Create a `tests` directory:
-```bash
-mkdir tests
-```
-
-2. Create test files following the naming convention `test_*.py`:
-```bash
-touch tests/test_app.py
-```
-
-3. Example test structure:
-```python
-import pytest
-from fastapi.testclient import TestClient
-from src.app import app
-
-client = TestClient(app)
-
-def test_health_check():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
-```
-
-### Running Tests
-
-To run the test suite:
-
-```bash
-poetry run pytest tests/ -v
-```
-
-For test coverage report:
-```bash
-poetry run pytest tests/ --cov=src --cov-report=term-missing
-```
-
-### Test Dependencies
-
-The project uses Poetry for dependency management. Test dependencies are managed through the `pyproject.toml` file:
-
-```toml
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^0.23.5"
-pytest-cov = "^4.1.0"
-httpx = "^0.26.0"  # For TestClient
-```
-
-## Project Structure
-
-```
-backend/
-├── src/
-│   ├── __init__.py     # Package initialization
-│   ├── app.py          # Main FastAPI application
-│   └── api/            # API routes and handlers
-├── tests/              # Test suite (to be developed)
-├── pyproject.toml      # Poetry project configuration
-└── .env               # Environment variables
-```
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| MILVUS_HOST | Milvus service hostname | - | Yes |
+| MILVUS_PORT | Milvus service port | - | Yes |
+| OLLAMA_HOST | Ollama service URL | - | Yes |
+| OLLAMA_MODEL | Default Ollama model | llama2 | No |
+| CHUNK_SIZE | Size of text chunks | 500 | No |
+| CHUNK_OVERLAP | Overlap between chunks | 100 | No |
+| MAX_TOKENS | Maximum tokens for output | 2048 | No |
+| TEMPERATURE | Model temperature | 0.7 | No |
+| LOG_LEVEL | Logging level | INFO | No |
+| CORS_ORIGINS | Allowed CORS origins | http://localhost:8501,http://localhost:3000 | No |
 
 ## Development
 
-### Adding New Features
+### Running Tests
 
-1. Create a new branch for your feature
-2. Add tests for new functionality
-3. Implement the feature
-4. Run tests to ensure everything passes
-5. Submit a pull request
+```bash
+poetry run pytest
+```
 
 ### Code Style
 
-The project follows PEP 8 guidelines. To check code style:
+This project uses black for code formatting:
 
 ```bash
-poetry run black src/ tests/
-poetry run isort src/ tests/
+poetry run black .
 ```
 
 ## Troubleshooting
 
-### Common Issues
+1. **Health Check Fails**
+   - Ensure Milvus is running and accessible
+   - Check Ollama service is running
+   - Verify environment variables are set correctly
 
-1. **Port Already in Use**
-   - Change the port in the run command
-   - Or kill the existing process using the port
+2. **CORS Issues**
+   - Verify the frontend origin is included in CORS_ORIGINS
+   - Check if the frontend is making requests to the correct backend URL
 
-2. **Milvus Connection Issues**
-   - Verify Milvus is running: `docker-compose ps`
-   - Check Milvus logs: `docker-compose logs milvus-standalone`
-   - Verify connection settings in `.env`
-
-3. **Docker Build Issues**
-   - Clean Docker cache: `docker builder prune`
-   - Rebuild without cache: `docker build --no-cache -t rag-chat-backend .`
-
-4. **Poetry Installation Issues**
-   - Make sure Python 3.12 is installed and available
-   - Try reinstalling Poetry: `curl -sSL https://install.python-poetry.org | python3 -`
-   - Clear Poetry cache: `poetry cache clear . --all`
+3. **Docker Issues**
+   - Ensure Docker daemon is running
+   - Check if ports are not already in use
+   - Verify environment variables are properly set
 
 ## Contributing
 
@@ -226,4 +180,4 @@ poetry run isort src/ tests/
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the LICENSE file for details.

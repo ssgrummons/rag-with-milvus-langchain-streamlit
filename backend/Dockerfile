@@ -20,9 +20,9 @@ RUN touch README.md
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Copy source code
-COPY src/ src/
+COPY src/ .
 
 EXPOSE 8000
 
 # Use uvicorn directly instead of python -m
-CMD ["poetry", "run", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

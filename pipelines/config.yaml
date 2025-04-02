@@ -12,28 +12,26 @@ collection:
     fields:
       - name: "id"
         data_type: "INT64"
-        description: "Unique identifier for the document"
+        description: "Primary key"
         is_primary: true
         auto_id: true
-        required: true
       - name: "embedding"
         data_type: "FLOAT_VECTOR"
-        description: "Embedding of the chunk"
+        description: "Document embedding"
         dim: 384  # Dimension for all-MiniLM-L6-v2
-        required: true
       - name: "content"
-        data_type: "String"
-        description: "Plain text content of the chunk"
-        required: true
+        data_type: "VARCHAR"
+        description: "Document content"
+        max_length: 65535
       - name: "metadata"
         data_type: "JSON"
-        description: "Metadata of the document"
-        required: false
+        description: "Document metadata"
       - name: "keywords"
-        data_type: "Array"
-        description: "Keywords of the chunk"
-        required: false
+        data_type: "ARRAY"
+        description: "Document keywords"
+        element_type: "VARCHAR"
+        max_capacity: 100
+        max_length: 65535
       - name: "created_at"
-        data_type: "String"
-        description: "Created at date of the record"
-        required: true
+        data_type: "VARCHAR"
+        description: "Creation timestamp"

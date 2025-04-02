@@ -105,8 +105,7 @@ class MilvusConnector:
     def _create_field_schema(self, field_config: Dict[str, Any]) -> FieldSchema:
         """Create a Milvus FieldSchema from config."""
         try:
-            data_type = getattr(DataType, field_config["data_type"])
-            
+            data_type = getattr(DataType, field_config["data_type"])            
             field_params = {
                 "name": field_config["name"],
                 "dtype": data_type,
@@ -115,13 +114,20 @@ class MilvusConnector:
                 "auto_id": field_config.get("auto_id", False),
                 "required": field_config.get("required", False)
             }
-            
             if data_type == DataType.FLOAT_VECTOR:
-                field_params["dim"] = field_config["dim"]
-                
-            return FieldSchema(**field_params)
+                field_params["dim"] = field_config["dim"]            
+            if data_type == DataType.VARCHAR:
+                field_params["max_length"] = field_config.get("max_length", 65535)            
+            if data_type == DataType.ARRAY:
+                element_type = getattr(DataType, field_config["element_type"])
+                field_params["element_type"] = element_type
+                field_params["max_capacity"] = field_config.get("max_capacity", 100)
+                if element_type == DataType.VARCHAR:
+                    field_params["max_length"] = field_config.get("max_length", 65535)              
+            return FieldSchema(**field_params)        
         except Exception as e:
             raise ConfigError(f"Invalid field schema: {str(e)}")
+
 
     def _create_collection_schema(self) -> CollectionSchema:
         """Create a Milvus CollectionSchema from config."""
@@ -207,10 +213,22 @@ class MarkdownProcessor:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 post = frontmatter.load(f)
-                content = markdown.markdown(post.content)
-            return post.metadata, content
+                content = post.content            
+            parsed_content = markdown.markdown(content)
+            headers = {}
+            current_level = 1            
+            while True:
+                level_str = f"header.{current_level}"
+                if level_str in parsed_content and isinstance(parsed_content[level_str], str):
+                    headers[level_str] = parsed_content[level_str]
+                    current_level += 1
+                else:
+                    break            
+            metadata = headers 
+            return metadata, parsed_content
         except Exception as e:
             raise ConfigError(f"Failed to parse markdown file {file_path}: {str(e)}")
+
     
     @staticmethod
     def chunk_text(text: str, chunk_size=500, overlap=100):

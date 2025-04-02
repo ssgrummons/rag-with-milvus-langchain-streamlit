@@ -263,5 +263,5 @@ async def handle_streaming_tool_call(
     Returns:
         An asynchronous generator yielding responses.
     """
-    async for chunk in _model_manager.handle_streaming_tool_call(model, messages, tools):
+    async for chunk in await _model_manager.handle_streaming_tool_call(model, messages, tools):
         yield chunk

@@ -133,16 +133,17 @@ class MilvusService:
             collection.load()
             
             search_params = {
-                "metric_type": "L2",
+                "metric_type": "COSINE",
                 "params": {"nprobe": 10}
             }
             
+            # Use the correct field names that match the collection schema
             results = collection.search(
                 data=[query_embedding],
                 anns_field=search_field,
                 param=search_params,
                 limit=top_k,
-                output_fields=output_fields or ["text", "metadata"]
+                output_fields=output_fields or ["content", "metadata"]
             )
             
             # Format results
@@ -152,7 +153,7 @@ class MilvusService:
                     result = {
                         "id": hit.id,
                         "score": hit.score,
-                        "text": hit.entity.get("text", ""),
+                        "content": hit.entity.get("content", ""),
                         "metadata": hit.entity.get("metadata", {})
                     }
                     formatted_results.append(result)
@@ -201,7 +202,7 @@ class ContextRetriever:
             context_items = []
             for result in results:
                 context_items.append({
-                    "text": result["text"],
+                    "text": result["content"],  # Map content to text for compatibility
                     "metadata": result["metadata"]
                 })
             

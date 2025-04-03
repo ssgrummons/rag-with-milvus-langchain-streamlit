@@ -22,15 +22,15 @@ All components are containerized and orchestrated using Docker Compose for strea
 
 ### Running Ollama
 
-First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [Granite3.2](https://ollama.com/library/granite3.2) model:
+First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [llama3.1](https://ollama.com/library/llama3.1) model:
 
 ```bash
-ollama pull granite3.2
+ollama pull llama3.1
 ```
 
 You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.
 
-**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, `granite3.2` successfully used tools and returned results, while `llama3.1` could use tools but did not return final results. Experiment with different models and update the [backend `.env` file`](backend/src/.env-template) accordingly.
+**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, some models handled different tools better than others. Experiment with different models and update the [backend `.env` file`](backend/src/.env-template) accordingly.
 
 ### Deploying Services
 

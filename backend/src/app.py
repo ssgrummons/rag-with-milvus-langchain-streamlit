@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     OLLAMA_HOST: str = Field(..., description="Ollama service URL")
-    OLLAMA_MODEL: str = Field(default="granite3.2", description="Default Ollama model to use")
+    OLLAMA_MODEL: str = Field(default="llama3.1", description="Default Ollama model to use")
     
     # RAG Configuration
     CHUNK_SIZE: int = Field(default=500, description="Size of text chunks for processing")
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
-    model: Optional[str] = "granite3.2"  # Default model
+    model: Optional[str] = "llama3.1"  # Default model
     system_prompt: Optional[str] = (
         "You are a helpful AI assistant that can use tools to help answer questions.\n"
         "When you need to perform calculations or retrieve information, use the available tools.\n"

@@ -114,8 +114,8 @@ class MilvusService:
         return Collection(collection_name)
     
     def search(self, collection_name: str, query_embedding: List[float], 
-               top_k: int = TOP_K, search_field: str = "embedding", 
-               output_fields: List[str] = None) -> List[Dict[str, Any]]:
+           top_k: int = TOP_K, search_field: str = "embedding", 
+           output_fields: List[str] = None) -> List[Dict[str, Any]]:
         """Search for similar vectors in a collection.
         
         Args:
@@ -137,7 +137,6 @@ class MilvusService:
                 "params": {"nprobe": 10}
             }
             
-            # Use the correct field names that match the collection schema
             results = collection.search(
                 data=[query_embedding],
                 anns_field=search_field,
@@ -153,8 +152,8 @@ class MilvusService:
                     result = {
                         "id": hit.id,
                         "score": hit.score,
-                        "content": hit.entity.get("content", ""),
-                        "metadata": hit.entity.get("metadata", {})
+                        "content": getattr(hit, "content", ""),  # Fix: use getattr instead of .get()
+                        "metadata": getattr(hit, "metadata", {})  # Fix: use getattr instead of .get()
                     }
                     formatted_results.append(result)
             
@@ -163,6 +162,7 @@ class MilvusService:
         except Exception as e:
             logger.error(f"Failed to search Milvus: {str(e)}")
             raise
+
 
 class ContextRetriever:
     """Service for retrieving context from Milvus."""
@@ -215,16 +215,16 @@ class ContextRetriever:
 context_retriever = ContextRetriever()
 
 @tool
-def retrieve_context(query: str, top_k: int = TOP_K) -> List[Document]:
+def retrieve_context(query: str) -> List[Document]:
     """Retrieve relevant context about DataNinja from the knowledge base. The knowledge base is a Milvus vector store.  Any queries about DataNinja should be answered using this tool.
     
     Args:
         query: The search query.
-        top_k: Number of documents to retrieve (default: 3).
         
     Returns:
         List of the content of the relevant documents with their content and metadata.
     """
+    top_k = TOP_K
     try:
         # Get context from the retriever
         context_items = context_retriever.retrieve(query, top_k)

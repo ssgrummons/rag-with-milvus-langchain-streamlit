@@ -50,7 +50,7 @@ Always explain your reasoning and show your work when using tools.
 
 Available tools:
 - multiply: Multiply two numbers together
-- retrieve_context: Get relevant information from the knowledge base
+- retrieve_context: Get relevant information from the knowledge baseRetrieve relevant context about DataNinja from the knowledge base. The knowledge base is a Milvus vector store.  Any queries about DataNinja should be answered using this tool.
 
 When using tools:
 1. Think about which tool would be most appropriate

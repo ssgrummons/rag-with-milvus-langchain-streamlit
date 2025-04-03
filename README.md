@@ -20,31 +20,96 @@ All components are containerized and orchestrated using Docker Compose for strea
 
 ## Deployment
 
-For detailed instructions navigate to the [Deployment Documentation](deployment/README.md).
+### Running Ollama
+
+First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [Granite3.2](https://ollama.com/library/granite3.2) model:
+
+```bash
+ollama pull granite3.2
+```
+
+You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.
+
+**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, `granite3.2` successfully used tools and returned results, while `llama3.1` could use tools but did not return final results. Experiment with different models and update the [backend `.env` file`](backend/src/.env-template) accordingly.
+
+### Deploying Services
+
+All services except for the document processing pipeline can be started using [Docker Compose](https://docs.docker.com/compose/). The [docker-compose.yml](deployment/docker-compose.yml) file is configured to use `.env` files for environment variables.
+
+#### Prepare the Environment Files
+
+Before starting the containers, create `.env` files based on the provided templates:
+
+1. **Backend Environment Variables**:
+   - Copy [backend/src/.env-template](backend/src/.env-template) and save it as `.env` in the same directory.
+   - Add your [LangSmith](https://www.langchain.com/langsmith) settings if applicable. Otherwise, leave the defaults.
+
+2. **Frontend Environment Variables**:
+   - Copy [frontend/src/.env-template](frontend/src/.env-template) and save it as `.env` in the same directory.
+   - No changes are necessary.
+
+#### Start the System
+
+1. **Clone the Repository**:
+
+   ```bash
+   git clone https://github.com/ssgrummons/rag-with-milvus-langchain-streamlit.git
+   ```
+
+2. **Navigate to the Project Directory**:
+
+   ```bash
+   cd rag-with-milvus-langchain-streamlit
+   ```
+
+3. **Start the Services**:
+
+   ```bash
+   docker-compose -f ./deployment/docker-compose.yml up -d --build
+   ```
+
+   This command builds and starts all the services in detached mode.
+
+4. **Access the Applications**:
+
+   - **Streamlit Interface**: Navigate to [http://localhost:8501](http://localhost:8501).
+   - **Attu GUI**: Open [http://localhost:8088](http://localhost:8088) and connect to Milvus with:
+     - **Milvus Address**: `milvus-standalone:19530`
+     - **Milvus Database**: `default`
+     - **Authentication**: None
+     - **Enable SSL**: Unchecked
+   - **Backend API**: View the OpenAPI documentation at [http://localhost:8000/docs#/](http://localhost:8000/docs#/).
+
+For more details, check the [Deployment Documentation](deployment/README.md).
+
+For knowledge base ingestion, refer to the [Pipeline Documentation](pipelines/README.md).
 
 ## Components Overview
 
-- **Streamlit Application**: Located in the `frontend` directory, this component provides the chat interface for user interactions.
-- **LangChain Backend**: Found in the `backend` directory, it manages the RAG process, interfacing with both the Streamlit front-end and the Milvus database.
-- **Milvus Vector Database**: Configured within the `deployment` directory, it stores vector representations of the processed documents.
-- **Attu Server**: Also configured in the `deployment` directory, offering a GUI for Milvus database management.
-- **Document Processing Pipeline**: Contained in the `pipelines` directory, this component automates the ingestion of markdown documents into the system.
+- **Streamlit Application**: Located in the `frontend` directory, this component provides the chat interface.
+- **LangChain Backend**: Found in the `backend` directory, it manages the RAG process and interacts with both the Streamlit front-end and the Milvus database.
+- **Milvus Vector Database**: Configured in the `deployment` directory, it stores vectorized document representations. Storage for Milvus resides in `deployment/vols` with separate volumes for `etcd`, `minio`, and `milvus`.
+- **Attu Server**: Also configured in `deployment`, offering a GUI for Milvus management.
+- **Document Processing Pipeline**: Contained in the `pipelines` directory, this component automates markdown document ingestion.
+- **Fake Documentation**: The `docs` folder contains fictional technical documentation for a made-up SaaS solution called *DataNinja*. After processing this documentation into Milvus, you can query it for *DataNinja* setup, administration, and usage guidance.
 
 ## Prerequisites
 
-Ensure the following are installed on your system:
+Ensure you have the following installed:
 
+- **Ollama**: For serving local models.
 - **Docker**: For containerization and deployment.
 - **Docker Compose**: To orchestrate the multi-container deployment.
 
 ## Notes
 
-This project is intended for proof-of-concept purposes, illustrating the foundational aspects of a RAG system and the integration of its various components.
+This project is intended as a proof-of-concept, demonstrating the foundational aspects of a RAG system and the integration of its various components.
 
-For more detailed information on the technologies used:
+For further technical reference:
 
-- **Milvus Installation**: Refer to the [Milvus documentation](https://milvus.io/docs/install_standalone-docker-compose.md) for guidance on setting up Milvus with Docker Compose.
-- **Attu Installation**: Instructions for installing Attu with Docker can be found [here](https://milvus.io/docs/v2.2.x/attu_install-docker.md).
-- **LangChain Integration**: Explore the [LangChain-Milvus integration](https://github.com/langchain-ai/langchain-milvus) for more details on connecting LangChain with Milvus.
+- **Milvus Installation**: [Milvus documentation](https://milvus.io/docs/install_standalone-docker-compose.md)
+- **Attu Installation**: [Attu Docker Installation Guide](https://milvus.io/docs/v2.2.x/attu_install-docker.md)
+- **LangChain Integration**: [LangChain-Milvus](https://github.com/langchain-ai/langchain-milvus)
 
-By following this guide, you can set up a basic RAG system that showcases the integration of Streamlit, LangChain, Milvus, and Attu, providing a foundation for further development and experimentation. 
+By following this guide, you can set up a basic RAG system that integrates Ollama, Streamlit, LangChain, Milvus, and Attu—providing a foundation for further development and experimentation.
+

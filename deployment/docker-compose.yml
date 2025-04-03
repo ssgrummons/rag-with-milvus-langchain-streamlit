@@ -6,17 +6,17 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - milvus-standalone
+      milvus-standalone:
+        condition: service_healthy
     env_file:
       - ../backend/src/.env
-
     networks:
       - app-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
-      timeout: 120s
-      retries: 5
+      timeout: 240s
+      retries: 10
 
   frontend:
     build: 

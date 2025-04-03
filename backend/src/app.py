@@ -61,7 +61,7 @@ class ChatRequest(BaseModel):
         "After using a tool, always provide a final response in words. Explain the result clearly, step by step.\n\n"
         "Available tools:\n"
         "- multiply: Multiply two numbers together\n"
-        "- retrieve_context: Get relevant information from the knowledge base\n\n"
+        "- retrieve_context: Get any information about DataNinja from the knowledge base\n\n"
         "When using tools:\n"
         "1. Think about which tool would be most appropriate\n"
         "2. Use the tool with the correct parameters\n"

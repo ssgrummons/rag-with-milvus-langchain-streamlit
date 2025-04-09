@@ -75,7 +75,7 @@ class ChatApp:
         st.title("Chat with the RAG Model")
         
         # Add a toggle for streaming mode
-        self.use_streaming = st.sidebar.checkbox("Use streaming responses", value=True)
+        self.use_streaming = st.sidebar.checkbox("Use streaming responses", value=False)
         
         # Display chat history
         self._display_chat_history()

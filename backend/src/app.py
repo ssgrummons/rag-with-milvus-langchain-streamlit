@@ -11,6 +11,7 @@ from langchain.schema import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from models import get_model, bind_tools, handle_tool_call, handle_streaming_tool_call
 from prompt_utils import build_messages
 from tools import retrieve_context, multiply
+from langgraph_agent import create_agent_graph, run_agent_graph, run_agent_graph_streaming, DEFAULT_SYSTEM_PROMPT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -54,20 +55,7 @@ class Settings(BaseSettings):
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
     model: Optional[str] = "qwen2:7b"  # Default model
-    system_prompt: Optional[str] = (
-        "You are a helpful AI assistant that can use tools to help answer questions.\n"
-        "When you need to perform calculations or retrieve information, use the available tools.\n"
-        "For mathematical questions, use the multiply tool to get accurate results.\n"
-        "After using a tool, always provide a final response in words. Explain the result clearly, step by step.\n\n"
-        "Available tools:\n"
-        "- multiply: Multiply two numbers together\n"
-        "- retrieve_context: Get any information about DataNinja from the knowledge base\n\n"
-        "When using tools:\n"
-        "1. Think about which tool would be most appropriate\n"
-        "2. Use the tool with the correct parameters\n"
-        "3. Explain the result in a clear way\n\n"
-        "Remember to use tools when they provide more accurate or helpful results."
-    )
+    system_prompt: Optional[str] = None  # Use default from langgraph_agent
     user_prompt: str
 
 class ChatResponse(BaseModel):
@@ -97,6 +85,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize the agent graph
+tools = [multiply, retrieve_context]
+agent_graph = create_agent_graph(tools, DEFAULT_SYSTEM_PROMPT)
 
 @app.get("/")
 async def root() -> Dict[str, str]:
@@ -147,6 +139,55 @@ async def chat(request: ChatRequest) -> ChatResponse:
         HTTPException: If there's an error processing the request.
     """
     try:
+        # Use the LangGraph agent
+        system_prompt = request.system_prompt or DEFAULT_SYSTEM_PROMPT
+        response = run_agent_graph(agent_graph, request.user_prompt, system_prompt)
+        return ChatResponse(response=response)
+    except Exception as e:
+        logger.error(f"Error in chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """Handle streaming chat requests with tool support."""
+    try:
+        # Use the LangGraph agent in streaming mode
+        system_prompt = request.system_prompt or DEFAULT_SYSTEM_PROMPT
+        
+        async def stream_generator():
+            try:
+                async for chunk in run_agent_graph_streaming(agent_graph, request.user_prompt, system_prompt):
+                    if chunk:
+                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+            except Exception as e:
+                logger.error(f"Error in stream generator: {str(e)}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                # Send an end-of-stream marker
+                yield "data: [DONE]\n\n"
+
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Legacy endpoints for backward compatibility
+@app.post("/chat/legacy", response_model=ChatResponse)
+async def chat_legacy(request: ChatRequest) -> ChatResponse:
+    """Legacy chat endpoint using the old implementation.
+    
+    This endpoint is maintained for backward compatibility.
+    """
+    try:
         # Get the model
         model = get_model(request.model)
         # Bind the tools
@@ -164,9 +205,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
-    """Handle streaming chat requests with tool support."""
+@app.post("/chat/stream/legacy")
+async def chat_stream_legacy(request: ChatRequest):
+    """Legacy streaming chat endpoint using the old implementation.
+    
+    This endpoint is maintained for backward compatibility.
+    """
     try:
         # Get the model
         model = get_model(request.model)

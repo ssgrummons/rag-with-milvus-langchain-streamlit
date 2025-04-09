@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from pymilvus import connections, Collection, utility
 from sentence_transformers import SentenceTransformer
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.tools import tool
 from langchain.schema import Document
 import logging

@@ -22,10 +22,10 @@ All components are containerized and orchestrated using Docker Compose for strea
 
 ### Running Ollama
 
-First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [llama3.1](https://ollama.com/library/llama3.1) model:
+First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [qwen2:7b](https://ollama.com/library/qwen2:7b) model:
 
 ```bash
-ollama pull llama3.1
+ollama pull qwen2:7b
 ```
 
 You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.

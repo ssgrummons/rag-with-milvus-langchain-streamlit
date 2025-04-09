@@ -70,6 +70,7 @@ Remember to use tools when they would provide more accurate or helpful results t
             system=system_prompt,
             format="json",  # Ensure JSON mode for tool calling
             callbacks=None,  # Disable callbacks to handle tool calls manually
+            verbose=True
         )
 
 class ToolHandler(ABC):
@@ -113,7 +114,12 @@ class StreamingToolHandler(ToolHandler):
                             tool_result = tool.invoke(args)
                             
                             # Add the tool result to the conversation
-                            messages.append(SystemMessage(content=f"The result of the {tool_name} operation is: {tool_result}. Now, please respond with a detailed answer and explanation in natural language without calling any tools."))
+                            messages.append(SystemMessage(content=f"""You have just ran the tool. The tools provided the context you need to answer the user's question.
+                                                          Now, respond with a detailed answer to the user's question based on this information.  
+                                                          Your answer should be in natural language.  Do not use any more tools.
+                                                          Do not make up any information.  
+                                                          Only use the context provided by the tool to answer the question accurately and truthfully.
+                                                          Context: {tool_result}"""))
                             
                             # Stream the final response
                             async for final_chunk in model.astream(messages):

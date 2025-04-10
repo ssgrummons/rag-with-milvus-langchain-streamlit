@@ -34,39 +34,81 @@ The graph flow is as follows:
 3. Tools → Assistant (to continue the conversation)
 4. Assistant → End (when the conversation is complete)
 
-## API Endpoints
+## Prerequisites
 
-- `/chat`: Non-streaming chat endpoint using LangGraph
-- `/chat/stream`: Streaming chat endpoint using LangGraph
-- `/chat/legacy`: Legacy non-streaming chat endpoint (for backward compatibility)
-- `/chat/stream/legacy`: Legacy streaming chat endpoint (for backward compatibility)
+Ensure you have the following installed:
+
+- **Ollama**: For serving local models.
+- **Docker**: For containerization and deployment.
+- **Docker Compose**: To orchestrate the multi-container deployment.
 
 ## Setup and Installation
 
-1. Clone the repository
-2. Install dependencies:
+### Running Ollama
+
+First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you have a local GPU, this will allow you to leverage it for improved performance. Once installed, download and run the project's default [qwen2:7b](https://ollama.com/library/qwen2:7b) model:
+
+```bash
+ollama pull qwen2:7b
+```
+
+You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.
+
+**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, some models handled different tools better than others. Experiment with different models and update the [backend `.env` file`](backend/src/.env-template) accordingly.
+
+### Preparing your Knowledge Base
+
+For knowledge base ingestion, refer to the [Pipeline Documentation](pipelines/README.md).
+
+### Deploying Services
+
+All services except for the document processing pipeline can be started using [Docker Compose](https://docs.docker.com/compose/). The [docker-compose.yml](deployment/docker-compose.yml) file is configured to use `.env` files for environment variables.
+
+#### Prepare the Environment Files
+
+Before starting the containers, create `.env` files based on the provided templates:
+
+1. **Backend Environment Variables**:
+   - Copy [backend/src/.env-template](backend/src/.env-template) and save it as `.env` in the same directory.
+   - Add your [LangSmith](https://www.langchain.com/langsmith) settings if applicable. Otherwise, leave the defaults.
+
+2. **Frontend Environment Variables**:
+   - Copy [frontend/src/.env-template](frontend/src/.env-template) and save it as `.env` in the same directory.
+   - No changes are necessary.
+
+#### Start the System
+
+1. **Clone the Repository**:
+
    ```bash
-   poetry install
-   ```
-3. Set up environment variables in `.env` file
-4. Start the backend:
-   ```bash
-   poetry run python -m backend.src.app
-   ```
-5. Start the frontend:
-   ```bash
-   poetry run streamlit run frontend/src/app.py
+   git clone https://github.com/ssgrummons/rag-with-milvus-langchain-streamlit.git
    ```
 
-## Environment Variables
+2. **Navigate to the Project Directory**:
 
-- `MILVUS_HOST`: Milvus service hostname
-- `MILVUS_PORT`: Milvus service port
-- `OLLAMA_HOST`: Ollama service URL
-- `OLLAMA_MODEL`: Default Ollama model to use
-- `EMBEDDING_MODEL`: Embedding model to use
-- `COLLECTION_NAME`: Milvus collection name
-- `TOP_K`: Number of results to retrieve from Milvus
+   ```bash
+   cd rag-with-milvus-langchain-streamlit
+   ```
+
+3. **Start the Services**:
+
+   ```bash
+   docker-compose -f ./deployment/docker-compose.yml up -d --build
+   ```
+
+   This command builds and starts all the services in detached mode.
+
+4. **Access the Applications**:
+
+   - **Streamlit Interface**: Navigate to [http://localhost:8501](http://localhost:8501).
+   - **Attu GUI**: Open [http://localhost:8088](http://localhost:8088) and connect to Milvus with:
+     - **Milvus Address**: `milvus-standalone:19530`
+     - **Milvus Database**: `default`
+     - **Authentication**: None
+     - **Enable SSL**: Unchecked
+   - **Backend API**: View the OpenAPI documentation at [http://localhost:8000/docs#/](http://localhost:8000/docs#/).
+
+For more details, check the [Deployment Documentation](deployment/README.md).
 
 ## Tools
 

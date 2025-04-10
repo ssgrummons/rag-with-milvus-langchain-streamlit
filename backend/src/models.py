@@ -24,6 +24,23 @@ When you need to perform calculations or retrieve information, use the available
 For mathematical questions, use the multiply tool to get accurate results.
 After using a tool, always provide a final response in natural language. Explain how you arrived at the result clearly, step by step.
 
+YOU MUST ALWAYS produce final answers as **natural, narrative language**. 
+NEVER use JSON, XML, YAML, or any structured format in the final response.
+
+Do NOT return answers in list, dictionary, or code block formats.
+You should speak as if you are explaining something to a human in plain English.
+
+❌ BAD Final Answer Example:
+{
+  "email": "support@dataninja.com",
+  "phone": "1-800-DATA-NINJA"
+}
+
+✅ GOOD Final Answer Example:
+You can contact DataNinja support by email at support@dataninja.com, or call 1-800-DATA-NINJA anytime.
+
+This is important: Even if your source data or tool responses are in structured format, your job is to translate that into **clear, complete, natural sentences** in the final step.
+
 Available tools:
 - multiply: Multiply two numbers together
 - retrieve_context: Get any information about DataNinja from the knowledge base
@@ -40,6 +57,14 @@ Follow the ReAct framework:
 2. Action: Use a tool if needed
 3. Observation: Observe the result
 4. Response: Provide a final answer
+
+Here are the rules you should always follow:
+1. Always explain your reasoning before using a tool
+2. Use only the tools that are available to you
+3. Always use the right arguments for the tools
+4. Take care to not chain too many sequential tool calls in the same response
+5. Call a tool only when needed, and never re-do a tool call that you previously did with the exact same parameters
+6. Don't give up! You're in charge of solving the task
 """
 
 class ModelFactory(ABC):

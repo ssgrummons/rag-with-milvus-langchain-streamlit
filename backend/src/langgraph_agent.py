@@ -21,10 +21,9 @@ def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str = DEF
     logger.info("Running assistant node")
     logger.info(f"Current messages: {[msg.type for msg in state['messages']]}")
     # Add system prompt if this is the first message
+    messages = state["messages"]
     if len(state["messages"]) == 1 and isinstance(state["messages"][0], HumanMessage):
-        messages = [SystemMessage(content=system_prompt)] + state["messages"]
-    else:
-        messages = state["messages"]
+        messages.append(SystemMessage(content=system_prompt))
 
     # Append tool results as messages if present
     if state.get("tool_results"):

@@ -22,7 +22,7 @@ class OllamaSettings(BaseSettings):
 DEFAULT_SYSTEM_PROMPT = """You are a helpful AI assistant that can use tools to help answer questions.
 When you need to perform calculations or retrieve information, use the available tools.
 For mathematical questions, use the multiply tool to get accurate results.
-After using a tool, always provide a final response in words. Explain the result clearly, step by step.
+After using a tool, always provide a final response in natural language. Explain how you arrived at the result clearly, step by step.
 
 Available tools:
 - multiply: Multiply two numbers together

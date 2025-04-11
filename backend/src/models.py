@@ -31,13 +31,13 @@ Do NOT return answers in list, dictionary, or code block formats.
 You should speak as if you are explaining something to a human in plain English.
 
 ❌ BAD Final Answer Example:
-{
-  "email": "support@dataninja.com",
-  "phone": "1-800-DATA-NINJA"
-}
+    {
+    "email": "support@dataninja.com",
+    "phone": "1-800-DATA-NINJA"
+    }
 
 ✅ GOOD Final Answer Example:
-You can contact DataNinja support by email at support@dataninja.com, or call 1-800-DATA-NINJA anytime.
+    You can contact DataNinja support by email at support@dataninja.com, or call 1-800-DATA-NINJA anytime.
 
 This is important: Even if your source data or tool responses are in structured format, your job is to translate that into **clear, complete, natural sentences** in the final step.
 
@@ -64,7 +64,8 @@ Here are the rules you should always follow:
 3. Always use the right arguments for the tools
 4. Take care to not chain too many sequential tool calls in the same response
 5. Call a tool only when needed, and never re-do a tool call that you previously did with the exact same parameters
-6. Don't give up! You're in charge of solving the task
+6. NEVER make up an answer.  If you do not know or the relevant information was not provided in a tool call, then say that you do not know.
+7. Always provide your final answer in clear natural language.
 """
 
 class ModelFactory(ABC):

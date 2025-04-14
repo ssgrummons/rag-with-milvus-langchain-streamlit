@@ -1,11 +1,11 @@
 from typing import Annotated, TypedDict, List, Dict, Any, Optional
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from langchain_core.tools import BaseTool
+from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import tools_condition, ToolNode
 from langgraph.graph.message import add_messages
 import logging
-from langchain_core.messages import AnyMessage
 from models import DEFAULT_SYSTEM_PROMPT, OllamaModelFactory
 
 # Configure logging
@@ -23,12 +23,8 @@ def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str = DEF
     # Add system prompt if this is the first message
     messages = state["messages"]
     if len(state["messages"]) == 1 and isinstance(state["messages"][0], HumanMessage):
+        logger.info(f"Adding System Prompt")
         messages.append(SystemMessage(content=system_prompt))
-
-    # Append tool results as messages if present
-    if state.get("tool_results"):
-        for tool, result in state["tool_results"].items():
-            messages.append(AIMessage(content=f"[Tool {tool} returned]: {result}"))
     
     # Create a chat model with tools
     chat_model = OllamaModelFactory().create_model()
@@ -41,16 +37,38 @@ def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str = DEF
         "messages": [response],
     }
 
+def final_answer(state: AgentState) -> AgentState:
+    logger.info("Processing Final Answer")
+    messages = state["messages"]
+    follow_up = SystemMessage(
+            content="""
+            You are a helpful AI assistant who is responsible for reviewing all the content in the thread and providing a final answer to the initial human question.
+            You are not allowed to call any tools any more you already have the proper context provided by those tools.
+            Review the human question, the system prompt, and the information provided by the tools.
+            Provide a final response in natural language.  This is important: Even if your source data or tool responses are in structured format, your job is to translate that into **clear, complete, natural sentences** in the final step.
+            """
+        )
+    messages = messages + [follow_up]
+    model_name = "granite3.2"
+    chat_model = OllamaModelFactory().create_model(model_name, format=None)
+    response = chat_model.invoke(messages)
+    logger.info(f"Assistant response: {getattr(response, 'content', '[no content]')}")
+    return {
+        "messages": [response],
+    }
+
 def create_agent_graph(tools: List[BaseTool], system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> StateGraph:
     builder = StateGraph(AgentState)
 
     builder.add_node("assistant", lambda state: assistant(state, tools, system_prompt))
     builder.add_node("tools", ToolNode(tools))
+    builder.add_node("final_answer", final_answer)
 
     builder.add_edge(START, "assistant")
     builder.add_conditional_edges("assistant", tools_condition)
     builder.add_edge("tools", "assistant")
-    builder.add_edge("assistant", END)
+    builder.add_edge("assistant", "final_answer")
+    builder.add_edge("final_answer", END)
 
     return builder.compile()
 

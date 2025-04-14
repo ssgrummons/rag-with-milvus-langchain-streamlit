@@ -83,7 +83,7 @@ class OllamaModelFactory(ModelFactory):
         """Initialize the factory with settings."""
         self.settings = settings or OllamaSettings()
     
-    def create_model(self, model_name: Optional[str] = None) -> BaseChatModel:
+    def create_model(self, model_name: Optional[str] = None, format:Optional[str] = "json") -> BaseChatModel:
         """Create an Ollama chat model instance.
         
         Args:
@@ -118,7 +118,7 @@ Remember to use tools when they would provide more accurate or helpful results t
             temperature=self.settings.TEMPERATURE,
             num_predict=self.settings.MAX_TOKENS,
             system=system_prompt,
-            format="json",  # Ensure JSON mode for tool calling
+            format=format,  
             callbacks=None,  # Disable callbacks to handle tool calls manually
             verbose=True
         )

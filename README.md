@@ -1,4 +1,4 @@
-# RAG Application with Milvus, LangChain, and Streamlit
+# Local Agentic RAG with Milvus, LangGraph, and Streamlit
 
 This project implements a Retrieval-Augmented Generation (RAG) application using Milvus for vector storage, LangChain for LLM interactions, and Streamlit for the frontend. The application now uses LangGraph to implement a ReAct framework for tool usage.
 

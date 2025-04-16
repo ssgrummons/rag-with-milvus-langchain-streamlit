@@ -33,7 +33,6 @@ The graph flow is as follows:
 2. Assistant → Tools (if tools are needed) or End (if no tools are needed)
 3. Tools → Assistant (to continue the conversation)
 4. Assistant → Final Answer (to summarize the results in natural language)
-5. Final Answer → End (when the conversation is complete)
 
 ## Prerequisites
 
@@ -51,12 +50,6 @@ First, install [Ollama](https://ollama.com) on Mac, Linux, or Windows. If you ha
 
 ```bash
 ollama pull qwen2:7b
-```
-
-You will also need to pull the Granite 3.2 model. The Granite 3.2 model is used for summarizing the final answer 
-
-```bash
-ollama pull granite3.2
 ```
 
 You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.

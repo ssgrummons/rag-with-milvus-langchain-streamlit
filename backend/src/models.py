@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List, Any, Dict, AsyncGenerator, Union
+from typing import Optional, List, Any, AsyncGenerator
 from pydantic_settings import BaseSettings
 from langchain_ollama import ChatOllama
 from langchain.chat_models.base import BaseChatModel
-from langchain.schema import BaseMessage, SystemMessage, AIMessage, HumanMessage
+from langchain.schema import BaseMessage, SystemMessage
 from langchain_core.tools import BaseTool
 
 class OllamaSettings(BaseSettings):
@@ -17,56 +17,6 @@ class OllamaSettings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
         extra = "ignore"
-
-# Default system prompt for the ReAct framework
-DEFAULT_SYSTEM_PROMPT = """You are a helpful AI assistant that can use tools to help answer questions.
-When you need to perform calculations or retrieve information, use the available tools.
-For mathematical questions, use the multiply tool to get accurate results.
-After using a tool, always provide a final response in natural language. Explain how you arrived at the result clearly, step by step.
-
-YOU MUST ALWAYS produce final answers as **natural, narrative language**. 
-NEVER use JSON, XML, YAML, or any structured format in the final response.
-
-Do NOT return answers in list, dictionary, or code block formats.
-You should speak as if you are explaining something to a human in plain English.
-
-❌ BAD Final Answer Example:
-    {
-    "email": "support@dataninja.com",
-    "phone": "1-800-DATA-NINJA"
-    }
-
-✅ GOOD Final Answer Example:
-    You can contact DataNinja support by email at support@dataninja.com, or call 1-800-DATA-NINJA anytime.
-
-This is important: Even if your source data or tool responses are in structured format, your job is to translate that into **clear, complete, natural sentences** in the final step.
-
-Available tools:
-- multiply: Multiply two numbers together
-- retrieve_context: Get any information about DataNinja from the knowledge base
-
-When using tools:
-1. Think about which tool would be most appropriate
-2. Use the tool with the correct parameters
-3. Explain the result in a clear way
-
-Remember to use tools when they provide more accurate or helpful results.
-
-Follow the ReAct framework:
-1. Thought: Think about what you need to do
-2. Action: Use a tool if needed
-3. Observation: Observe the result
-4. Response: Provide a final answer
-
-Here are the rules you should always follow:
-1. Always explain your reasoning before using a tool
-2. Use only the tools that are available to you
-3. Always use the right arguments for the tools
-4. Take care to not chain too many sequential tool calls in the same response
-5. Call a tool only when needed, and never re-do a tool call that you previously did with the exact same parameters
-6. NEVER make up an answer.  If you do not know or the relevant information was not provided in a tool call, then say that you do not know.
-7. Always provide your final answer in clear natural language.
-"""
 
 class ModelFactory(ABC):
     """Abstract factory for creating chat models."""
@@ -82,8 +32,15 @@ class OllamaModelFactory(ModelFactory):
     def __init__(self, settings: Optional[OllamaSettings] = None):
         """Initialize the factory with settings."""
         self.settings = settings or OllamaSettings()
+        ## Generic System Prompt
+        self.system_prompt = """
+        You are a helpful AI assistant that can use tools to help answer questions.
+        When you need to perform calculations or retrieve information, use the available tools.
+        Always explain your reasoning and show your work when using tools.
+        Remember to use tools when they would provide more accurate or helpful results than trying to calculate or recall information yourself.
+        """
     
-    def create_model(self, model_name: Optional[str] = None, format:Optional[str] = "json") -> BaseChatModel:
+    def create_model(self, model_name: Optional[str] = None, system_prompt: Optional[str] = None, format:Optional[str] = "json", verbose: Optional[bool] = True) -> BaseChatModel:
         """Create an Ollama chat model instance.
         
         Args:
@@ -92,35 +49,15 @@ class OllamaModelFactory(ModelFactory):
         Returns:
             A configured ChatOllama instance.
         """
-        # Custom system prompt for tool usage
-        system_prompt = """You are a helpful AI assistant that can use tools to help answer questions.
-When you need to perform calculations or retrieve information, use the available tools.
-For mathematical questions, use the multiply tool to get accurate results.
-Always explain your reasoning and show your work when using tools.
-
-Available tools:
-- multiply: Multiply two numbers together
-- retrieve_context: Get relevant information from the knowledge baseRetrieve relevant context about DataNinja from the knowledge base. The knowledge base is a Milvus vector store.  Any queries about DataNinja should be answered using this tool.
-
-When using tools:
-1. Think about which tool would be most appropriate
-2. Use the tool with the correct parameters
-3. Explain the result in a clear way
-
-Remember to use tools when they would provide more accurate or helpful results than trying to calculate or recall information yourself."""
-
-        # Ensure model name doesn't have trailing spaces
-        model = (model_name or self.settings.OLLAMA_MODEL).strip()
 
         return ChatOllama(
-            model=model,
+            model=(model_name or self.settings.OLLAMA_MODEL).strip(),
             base_url=self.settings.OLLAMA_HOST,
             temperature=self.settings.TEMPERATURE,
             num_predict=self.settings.MAX_TOKENS,
-            system=system_prompt,
+            system=system_prompt or self.system_prompt,
             format=format,  
-            callbacks=None,  # Disable callbacks to handle tool calls manually
-            verbose=True
+            verbose=verbose
         )
 
 class ToolHandler(ABC):

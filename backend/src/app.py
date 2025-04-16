@@ -3,19 +3,26 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel, Field
+from typing import Dict, Any, Optional, List
 import logging
-from typing import Dict, Any, Optional, List, AsyncGenerator
 import json
-from langchain.schema import SystemMessage, HumanMessage, AIMessage, BaseMessage
+import yaml
+from langchain.schema import SystemMessage, HumanMessage
 
 from models import get_model, bind_tools, handle_tool_call, handle_streaming_tool_call
-from prompt_utils import build_messages
 from tools import retrieve_context, multiply
-from langgraph_agent import create_agent_graph, run_agent_graph, run_agent_graph_streaming, DEFAULT_SYSTEM_PROMPT
+from langgraph_agent import create_agent_graph, run_agent_graph, run_agent_graph_streaming
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load prompts from YAML file
+with open("prompts.yaml", 'r') as stream:
+    prompt_templates = yaml.safe_load(stream)
+
+# Get the system prompt from the YAML file
+assistant_system_prompt = prompt_templates["assistant_system_prompt"]
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -88,7 +95,7 @@ app.add_middleware(
 
 # Initialize the agent graph
 tools = [multiply, retrieve_context]
-agent_graph = create_agent_graph(tools, DEFAULT_SYSTEM_PROMPT)
+agent_graph = create_agent_graph(tools, assistant_system_prompt)
 
 @app.get("/")
 async def root() -> Dict[str, str]:
@@ -140,8 +147,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
     """
     try:
         # Use the LangGraph agent
-        system_prompt = request.system_prompt or DEFAULT_SYSTEM_PROMPT
-        response = run_agent_graph(agent_graph, request.user_prompt, system_prompt)
+        system_prompt = request.system_prompt or assistant_system_prompt
+        response = run_agent_graph(agent_graph, request.user_prompt)
         return ChatResponse(response=response)
     except Exception as e:
         logger.error(f"Error in chat: {str(e)}")
@@ -152,11 +159,11 @@ async def chat_stream(request: ChatRequest):
     """Handle streaming chat requests with tool support."""
     try:
         # Use the LangGraph agent in streaming mode
-        system_prompt = request.system_prompt or DEFAULT_SYSTEM_PROMPT
+        system_prompt = request.system_prompt or assistant_system_prompt
         
         async def stream_generator():
             try:
-                async for chunk in run_agent_graph_streaming(agent_graph, request.user_prompt, system_prompt):
+                async for chunk in run_agent_graph_streaming(agent_graph, request.user_prompt):
                     if chunk:
                         yield f"data: {json.dumps({'content': chunk})}\n\n"
             except Exception as e:

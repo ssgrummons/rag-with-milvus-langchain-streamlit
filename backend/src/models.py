@@ -5,6 +5,11 @@ from langchain_ollama import ChatOllama
 from langchain.chat_models.base import BaseChatModel
 from langchain.schema import BaseMessage, SystemMessage
 from langchain_core.tools import BaseTool
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class OllamaSettings(BaseSettings):
     """Settings for Ollama model configuration."""
@@ -49,9 +54,11 @@ class OllamaModelFactory(ModelFactory):
         Returns:
             A configured ChatOllama instance.
         """
+        model=(model_name or self.settings.OLLAMA_MODEL).strip()
+        logging.info(f"Calling Ollama model with name: {model}")
 
         return ChatOllama(
-            model=(model_name or self.settings.OLLAMA_MODEL).strip(),
+            model=model,
             base_url=self.settings.OLLAMA_HOST,
             temperature=self.settings.TEMPERATURE,
             num_predict=self.settings.MAX_TOKENS,

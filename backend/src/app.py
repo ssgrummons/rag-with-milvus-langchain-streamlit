@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, List
 import logging
 import json
 import yaml
+import os
 
 from tools import retrieve_context, multiply
 from langgraph_agent import create_agent_graph, run_agent_graph, run_agent_graph_streaming
@@ -16,7 +17,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load prompts from YAML file
-with open("prompts.yaml", 'r') as stream:
+current_dir = os.path.dirname(os.path.abspath(__file__))
+prompts_path = os.path.join(current_dir, "prompts.yaml")
+with open(prompts_path, 'r') as stream:
     prompt_templates = yaml.safe_load(stream)
 
 # Get the system prompt from the YAML file

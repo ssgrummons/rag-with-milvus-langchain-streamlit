@@ -7,9 +7,7 @@ from typing import Dict, Any, Optional, List
 import logging
 import json
 import yaml
-from langchain.schema import SystemMessage, HumanMessage
 
-from models import get_model, bind_tools, handle_tool_call, handle_streaming_tool_call
 from tools import retrieve_context, multiply
 from langgraph_agent import create_agent_graph, run_agent_graph, run_agent_graph_streaming
 
@@ -147,7 +145,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
     """
     try:
         # Use the LangGraph agent
-        system_prompt = request.system_prompt or assistant_system_prompt
         response = run_agent_graph(agent_graph, request.user_prompt)
         return ChatResponse(response=response)
     except Exception as e:
@@ -159,7 +156,6 @@ async def chat_stream(request: ChatRequest):
     """Handle streaming chat requests with tool support."""
     try:
         # Use the LangGraph agent in streaming mode
-        system_prompt = request.system_prompt or assistant_system_prompt
         
         async def stream_generator():
             try:
@@ -187,88 +183,6 @@ async def chat_stream(request: ChatRequest):
         logger.error(f"Error in chat stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Legacy endpoints for backward compatibility
-@app.post("/chat/legacy", response_model=ChatResponse)
-async def chat_legacy(request: ChatRequest) -> ChatResponse:
-    """Legacy chat endpoint using the old implementation.
-    
-    This endpoint is maintained for backward compatibility.
-    """
-    try:
-        # Get the model
-        model = get_model(request.model)
-        # Bind the tools
-        model_with_tools = bind_tools(model, [multiply, retrieve_context])
-        # Create messages list
-        messages = []
-        # Add system message if provided, otherwise use default
-        if request.system_prompt:
-            messages.append(SystemMessage(content=request.system_prompt))
-        # Add user message
-        messages.append(HumanMessage(content=request.user_prompt))
-        # Handle the conversation with tool calls
-        response = handle_tool_call(model_with_tools, messages, [multiply, retrieve_context])
-        return ChatResponse(response=response)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/chat/stream/legacy")
-async def chat_stream_legacy(request: ChatRequest):
-    """Legacy streaming chat endpoint using the old implementation.
-    
-    This endpoint is maintained for backward compatibility.
-    """
-    try:
-        # Get the model
-        model = get_model(request.model)
-        
-        # Bind the tools
-        model_with_tools = bind_tools(model, [multiply, retrieve_context])
-        
-        # Create messages list
-        messages = []
-        
-        # Add system message if provided, otherwise use default
-        if request.system_prompt:
-            messages.append(SystemMessage(content=request.system_prompt))
-        
-        # Add user message
-        messages.append(HumanMessage(content=request.user_prompt))
-        
-        async def stream_generator():
-            try:
-                # Get the streaming handler
-                stream_handler = handle_streaming_tool_call(
-                    model_with_tools,
-                    messages,
-                    [multiply, retrieve_context]
-                )
-                
-                # Process the stream
-                async for chunk in stream_handler:
-                    # Format the chunk as a Server-Sent Event
-                    if chunk:
-                        yield f"data: {json.dumps({'content': chunk})}\n\n"
-            except Exception as e:
-                logger.error(f"Error in stream generator: {str(e)}")
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            finally:
-                # Send an end-of-stream marker
-                yield "data: [DONE]\n\n"
-
-        return StreamingResponse(
-            stream_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in chat stream: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

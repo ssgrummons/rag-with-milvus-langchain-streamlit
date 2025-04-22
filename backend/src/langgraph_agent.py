@@ -5,7 +5,6 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import tools_condition, ToolNode
 from langgraph.graph.message import add_messages
 import logging
-import json
 from models import OllamaModelFactory
 
 # Configure logging
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 class AgentState(TypedDict, total=False):
     """State for the agent graph."""
     messages: Annotated[List[AnyMessage], add_messages]
-    tool_results: Any
-    streaming: bool
+    #tool_results: Any
     streamed_output: AsyncGenerator[str, None]
 
 def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str) -> Dict[str, Any]:
@@ -24,72 +22,72 @@ def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str) -> D
     logger.info(f"Current messages: {[msg.type for msg in state['messages']]}")
     messages = state["messages"]
     if len(messages) == 1 and isinstance(messages[0], HumanMessage):
-        logger.info(f"Adding System Prompt")
+        logger.info("Adding system prompt to message history")
         messages.append(SystemMessage(content=system_prompt))
     
     chat_model = OllamaModelFactory().create_model(format=None)
     chat_with_tools = chat_model.bind_tools(tools)
     response = chat_with_tools.invoke(messages)
+
     logger.info(f"Assistant response: {getattr(response, 'content', '[no content]')}")
     return {"messages": [response]}
 
-async def final_answer(state: AgentState) -> Dict[str, Any]:
-    logger.debug("Running final answer node")
+async def final_answer_async(state: AgentState) -> Dict[str, Any]:
+    logger.debug("Running final answer async (streaming) node")
     messages = state["messages"]
     messages.append(AIMessage(content="Finalizing answer..."))
-    streaming = state.get("streaming", False)
 
     chat_model = OllamaModelFactory().create_model(format=None)
+    stream = chat_model.astream(messages)
 
-    if streaming:
-        logger.debug("Running agent graph with streaming...")
-        stream = chat_model.astream(messages)
+    async def wrapped_stream():
+        logger.debug("Running streaming wrapper...")
+        async for chunk in stream:
+            logger.debug(f"Streamed chunk: {chunk}")
+            if hasattr(chunk, "content"):
+                yield chunk.content
+            elif isinstance(chunk, str):
+                yield chunk
 
-        async def wrapped_stream():
-            logger.debug("Running streaming wrapper...")
-            async for chunk in stream:
-                logger.debug(f"Streamed chunk: {chunk}")
-                if hasattr(chunk, "content"):
-                    yield chunk.content
-                elif isinstance(chunk, str):
-                    yield chunk
+    return {"streamed_output": wrapped_stream()}
 
-        return {"streamed_output": wrapped_stream()}
-    else:
-        logger.debug("Running agent graph without streaming...")
-        response = chat_model.invoke(messages)
-        return {"messages": [response]}
+def final_answer_sync(state: AgentState) -> Dict[str, Any]:
+    logger.debug("Running final answer sync node")
+    messages = state["messages"]
+    messages.append(AIMessage(content="Finalizing answer..."))
 
+    chat_model = OllamaModelFactory().create_model(format=None)
+    response = chat_model.invoke(messages)
 
-def create_agent_graph(tools: List[BaseTool], system_prompt: str) -> StateGraph:
+    return {"messages": [response]}
+
+def create_agent_graph(tools: List[BaseTool], system_prompt: str, streaming: bool = False) -> StateGraph:
     builder = StateGraph(AgentState)
     
     # Define nodes
     builder.add_node("assistant", lambda s: assistant(s, tools, system_prompt))
     builder.add_node("tools", ToolNode(tools))
-    builder.add_node("final_answer", final_answer)  # This node handles streaming
-    
+    builder.add_node("final_answer", final_answer_async if streaming else final_answer_sync)
+
     # Define edges
     builder.add_edge(START, "assistant")
     builder.add_conditional_edges("assistant", tools_condition)
     builder.add_edge("tools", "final_answer")
     builder.add_edge("final_answer", END)
     
-    return builder.compile() 
+    return builder.compile()
 
 def run_agent_graph(graph, initial_state: dict) -> AnyMessage:
-    initial_state["streaming"] = False  # Ensure streaming is off
     final_state = graph.invoke(initial_state)
     return final_state["messages"][-1]
 
 async def run_agent_graph_streaming(
-    graph,
-    initial_state: dict
-) -> AsyncGenerator[str, None]:
-    initial_state["streaming"] = True
+        graph, 
+        initial_state: dict
+        ) -> AsyncGenerator[str, None]:
     try:
         logger.debug("Running the Agent Graph Streaming Function...")
-        final_state = await graph.ainvoke(initial_state)  # Run full graph
+        final_state = await graph.ainvoke(initial_state) # Run full graph
         stream = final_state.get("streamed_output", None)
         logger.debug(f'Debug Stream: {stream}')
 

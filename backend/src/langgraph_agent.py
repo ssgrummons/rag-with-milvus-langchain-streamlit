@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class AgentState(TypedDict, total=False):
     """State for the agent graph."""
     messages: Annotated[List[AnyMessage], add_messages]
-    #tool_results: Any
     streamed_output: AsyncGenerator[str, None]
 
 def assistant(state: AgentState, tools: List[BaseTool], system_prompt: str) -> Dict[str, Any]:

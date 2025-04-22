@@ -77,14 +77,24 @@ def create_agent_graph(tools: List[BaseTool], system_prompt: str, streaming: boo
     
     return builder.compile()
 
-def run_agent_graph(graph, initial_state: dict) -> AnyMessage:
+def run_agent_graph(
+        graph, 
+        user_prompt: str) -> str:
+    initial_state = {
+        "messages": [HumanMessage(content=user_prompt)],
+    }
     final_state = graph.invoke(initial_state)
-    return final_state["messages"][-1]
+    final_response = final_state["messages"][-1]
+    logger.info(f"Final response: {getattr(final_response, 'content', '[no content]')}")
+    return final_response.content if hasattr(final_response, 'content') else str(final_response)
 
 async def run_agent_graph_streaming(
         graph, 
-        initial_state: dict
+        user_prompt: str
         ) -> AsyncGenerator[str, None]:
+    initial_state = {
+        "messages": [HumanMessage(content=user_prompt)],
+    }
     try:
         logger.debug("Running the Agent Graph Streaming Function...")
         final_state = await graph.ainvoke(initial_state) # Run full graph

@@ -60,15 +60,6 @@ class Settings(BaseSettings):
         """Get list of allowed CORS origins."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
-class ChatRequest(BaseModel):
-    """Request model for chat endpoint."""
-    model: Optional[str] = "qwen2:7b"  # Default model
-    user_prompt: str
-
-class ChatResponse(BaseModel):
-    """Response model for chat endpoint."""
-    response: str
-
 # Load settings
 try:
     settings = Settings()
@@ -77,6 +68,15 @@ try:
 except Exception as e:
     logger.error(f"Failed to load settings: {str(e)}")
     raise
+
+class ChatRequest(BaseModel):
+    """Request model for chat endpoint."""
+    model: Optional[str] = settings.OLLAMA_MODEL  # Uses the env var via Settings
+    user_prompt: str
+
+class ChatResponse(BaseModel):
+    """Response model for chat endpoint."""
+    response: str
 
 app = FastAPI(
     title="RAG Backend API",

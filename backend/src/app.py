@@ -63,7 +63,6 @@ class Settings(BaseSettings):
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
     model: Optional[str] = "qwen2:7b"  # Default model
-    system_prompt: Optional[str] = None  # Use default from langgraph_agent
     user_prompt: str
 
 class ChatResponse(BaseModel):

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from typing import List, Dict, Optional
 
 class ChatApp:
-    def __init__(self, use_streaming: bool = False):
+    def __init__(self, use_streaming: bool = True):
         load_dotenv()
         self.port = int(os.getenv("STREAMLIT_PORT", 8501))
         self.use_streaming = use_streaming
@@ -75,7 +75,7 @@ class ChatApp:
         st.title("Chat with the RAG Model")
         
         # Add a toggle for streaming mode
-        self.use_streaming = st.sidebar.checkbox("Use streaming responses", value=False)
+        self.use_streaming = st.sidebar.checkbox("Use streaming responses", value=True)
         
         # Display chat history
         self._display_chat_history()

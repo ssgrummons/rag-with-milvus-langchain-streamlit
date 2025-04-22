@@ -96,7 +96,6 @@ app.add_middleware(
 
 # Initialize the agent graph
 tools = [multiply, retrieve_context]
-agent_graph = create_agent_graph(tools, assistant_system_prompt)
 
 @app.get("/")
 async def root() -> Dict[str, str]:
@@ -146,6 +145,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
     Raises:
         HTTPException: If there's an error processing the request.
     """
+    agent_graph = create_agent_graph(tools, assistant_system_prompt, False)
     try:
         # Use the LangGraph agent
         response = run_agent_graph(agent_graph, request.user_prompt)
@@ -157,6 +157,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """Handle streaming chat requests with tool support."""
+    agent_graph = create_agent_graph(tools, assistant_system_prompt, True)
     try:
         # Use the LangGraph agent in streaming mode
         

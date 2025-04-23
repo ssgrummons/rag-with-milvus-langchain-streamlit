@@ -40,5 +40,12 @@ WORKDIR /app
 COPY --from=builder /app /app
 COPY src/ .
 
+# Create a non-root user and switch to it
+RUN groupadd -r appuser && useradd -r -m -g appuser -u 1000 appuser \
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /.cache
+
+USER appuser
+
 EXPOSE 8000
 CMD ["poetry", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

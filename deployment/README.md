@@ -51,11 +51,13 @@ mkdir -p vols/{etcd,minio,milvus}
 ```
 
 3. Build and start all services:
-```bash
-docker-compose up --build -d
-```
+   The `EMBEDDING_MODEL` environment variable is used in both the runtime and the build environment.  In order to define it once, we will pull it from the `.env` file before we run the Docker Compose command.  This enables us define the environment varialbe once and use it throughout the system.  You can do this by exporting the environment variable:
 
-The `-d` flag runs the containers in detached mode (background).
+   ```bash
+   export EMBEDDING_MODEL=$(grep EMBEDDING_MODEL ../backend/src/.env | cut -d '=' -f2-) docker-compose -f docker-compose.yml up -d --build
+   ```
+
+   The `-d` flag runs the containers in detached mode (background).
 
 ## Service Verification
 
@@ -128,62 +130,6 @@ The deployment uses the following configuration files:
    - Local storage paths configured
    - Basic logging settings
 
-## Troubleshooting
-
-1. If services fail to start, check the logs:
-```bash
-docker-compose logs
-```
-
-2. If you need to reset the deployment:
-```bash
-# Stop all services
-docker-compose down
-
-# Remove volume data (warning: this will delete all data)
-rm -rf vols/*
-
-# Recreate volumes and start services
-mkdir -p vols/{etcd,minio,milvus}
-docker-compose up -d
-```
-
-3. Common issues:
-   - Port conflicts: Ensure ports 8000, 8501, 19530, and 8088 are available
-   - Volume permissions: Ensure the `vols` directory has proper permissions
-   - Network issues: Check if all services can communicate within the Docker network
-
-## Development
-
-For local development:
-
-1. Stop the containers:
-```bash
-docker-compose down
-```
-
-2. Make changes to the code or configuration
-
-3. Rebuild and restart:
-```bash
-docker-compose up --build -d
-```
-
-## Cleanup
-
-To completely clean up the deployment:
-
-```bash
-# Stop and remove containers
-docker-compose down
-
-# Remove volume data
-rm -rf vols/*
-
-# Remove built images
-docker-compose rm -f
-docker system prune -f
-```
 
 ## Production Considerations
 

@@ -48,64 +48,9 @@ poetry run streamlit run src/app.py
 
 The application will be available at `http://localhost:8501` by default.
 
-## Docker
+## Docker-Compose
 
-### Building the Docker Image
-
-To build the Docker image:
-
-```bash
-docker build -t rag-chat-frontend .
-```
-
-### Running with Docker
-
-To run the application using Docker:
-
-```bash
-docker run -p 8501:8501 \
-  -e STREAMLIT_PORT=8501 \
-  -e API_BASE_URL=http://host.docker.internal:8000 \
-  rag-chat-frontend
-```
-
-Note: 
-- The `-p 8501:8501` flag maps the container's port 8501 to your host machine's port 8501
-- `host.docker.internal` is used to access the host machine from within the container
-- Adjust the `API_BASE_URL` according to your backend service location
-
-### Docker Compose
-
-Alternatively, you can use Docker Compose. Create a `docker-compose.yml` file:
-
-```yaml
-version: '3.8'
-services:
-  frontend:
-    build: .
-    ports:
-      - "8501:8501"
-    environment:
-      - STREAMLIT_PORT=8501
-      - API_BASE_URL=http://host.docker.internal:8000
-```
-
-Then run:
-```bash
-docker-compose up
-```
-
-### Docker Development
-
-For development, you might want to mount the source code as a volume to enable hot-reloading:
-
-```bash
-docker run -p 8501:8501 \
-  -e STREAMLIT_PORT=8501 \
-  -e API_BASE_URL=http://host.docker.internal:8000 \
-  -v $(pwd)/src:/app \
-  rag-chat-frontend
-```
+The recommmended method to deploy the application is to use Docker-Compose, as it will ensure all necessary backend services are running.  See the instructions for running Docker-Compose in the main [README.md](../README.md).
 
 ## Testing
 

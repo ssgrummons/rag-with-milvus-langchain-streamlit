@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import os
 from dotenv import load_dotenv
 from pymilvus import connections, Collection, utility

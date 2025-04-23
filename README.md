@@ -92,8 +92,10 @@ Before starting the containers, create `.env` files based on the provided templa
 
 3. **Start the Services**:
 
+   The `EMBEDDING_MODEL` environment variable is used in both the runtime and the build environment.  In order to define it once, we will pull it from the `.env` file before we run the Docker Compose command.  This enables us define the environment varialbe once and use it throughout the system.  You can do this by exporting the environment variable:
+
    ```bash
-   docker-compose -f ./deployment/docker-compose.yml up -d --build
+   export EMBEDDING_MODEL=$(grep EMBEDDING_MODEL ./backend/src/.env | cut -d '=' -f2-) | docker-compose -f ./deployment/docker-compose.yml up -d --build
    ```
 
    This command builds and starts all the services in detached mode.

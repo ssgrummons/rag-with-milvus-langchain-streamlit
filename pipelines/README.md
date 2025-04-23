@@ -84,7 +84,7 @@ collection:
 1. Ensure the deployment services are running:
 ```bash
 cd ../deployment
-docker-compose up -d
+docker-compose up -d milvus-standalone
 ```
 
 2. Activate the Poetry environment:

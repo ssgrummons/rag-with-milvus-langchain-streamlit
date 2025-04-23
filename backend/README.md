@@ -73,10 +73,7 @@ The API will be available at `http://localhost:8000`.
 
 1. Create a `.env` file in the `src` directory as described above.
 
-2. Build and run using Docker Compose:
-   ```bash
-   docker-compose up --build
-   ```
+2. Use the documentation in the project's [root README](../README.md) to deploy the system using Docker Compose.
 
 ### Option 2: Manual Docker Build
 

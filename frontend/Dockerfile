@@ -1,3 +1,4 @@
+# frontend/Dockerfile
 FROM python:3.12-slim
 
 RUN pip install poetry==1.8.3
@@ -17,6 +18,12 @@ RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 COPY src/ .
 
 RUN poetry install --without dev
+
+# Create a non-root user and switch to it
+RUN groupadd -r appuser && useradd -r -m -g appuser -u 1000 appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8501
 

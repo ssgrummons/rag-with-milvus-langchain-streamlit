@@ -54,7 +54,7 @@ ollama pull qwen2:7b
 
 You can validate that Ollama is running by navigating to [http://localhost:11434](http://localhost:11434). Your Docker containers will access Ollama on the host using `http://host.docker.internal:11434`.
 
-**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, some models handled different tools better than others. Experiment with different models and update the [backend .env file`](backend/src/.env-template) accordingly.  I've found similar performance with `granite3.2`.
+**For the system to work, you need a model that supports [tool use](https://ollama.com/search?c=tools).** You can configure different models in the backend environment. During development, some models handled different tools better than others. Experiment with different models and update the [backend .env file](backend/src/.env-template) accordingly.  I've found similar performance with `granite3.2`.
 
 ### Preparing your Knowledge Base
 
